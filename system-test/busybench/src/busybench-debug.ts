@@ -1,31 +1,17 @@
 /**
- * Copyright 2019 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Debug version of busybench to isolate segfault
  */
 
-// eslint-disable-next-line n/no-unsupported-features/node-builtins
 import {promises} from 'fs';
-// eslint-disable-next-line n/no-extraneous-import
 import {encode, heap, SourceMapper, time} from 'pprof';
+
+console.log('1. Imports loaded');
 
 const startTime: number = Date.now();
 const testArr: number[][] = [];
 
-/**
- * Fills several arrays, then calls itself with setTimeout.
- * It continues to do this until durationSeconds after the startTime.
- */
+console.log('2. Variables initialized');
+
 function busyLoop(durationSeconds: number) {
   for (let i = 0; i < testArr.length; i++) {
     for (let j = 0; j < testArr[i].length; j++) {
@@ -37,6 +23,8 @@ function busyLoop(durationSeconds: number) {
   }
 }
 
+console.log('3. busyLoop defined');
+
 function benchmark(durationSeconds: number) {
   // Allocate 16 MiB in 64 KiB chunks.
   for (let i = 0; i < 16 * 16; i++) {
@@ -45,37 +33,59 @@ function benchmark(durationSeconds: number) {
   busyLoop(durationSeconds);
 }
 
+console.log('4. benchmark defined');
+
 async function collectAndSaveTimeProfile(
   durationSeconds: number,
   sourceMapper: SourceMapper
 ): Promise<void> {
+  console.log('6a. Starting time profile');
   const profile = await time.profile({
     durationMillis: 1000 * durationSeconds,
     sourceMapper,
   });
+  console.log('6b. Time profile collected, encoding');
   const buf = await encode(profile);
+  console.log('6c. Time profile encoded, writing');
   await promises.writeFile('time.pb.gz', buf);
+  console.log('6d. Time profile written');
 }
 
 async function collectAndSaveHeapProfile(
   sourceMapper: SourceMapper
 ): Promise<void> {
+  console.log('7a. Starting heap profile collection');
   const profile = await heap.profile(undefined, sourceMapper);
+  console.log('7b. Heap profile collected, encoding');
   const buf = await encode(profile);
+  console.log('7c. Heap profile encoded, writing');
   await promises.writeFile('heap.pb.gz', buf);
+  console.log('7d. Heap profile written');
+  console.log('7e. Stopping heap profiler');
+  heap.stop();
+  console.log('7f. Heap profiler stopped');
 }
 
 async function collectAndSaveProfiles(): Promise<void> {
+  console.log('5a. Creating SourceMapper');
   const sourceMapper = await SourceMapper.create([process.cwd()]);
+  console.log('5b. SourceMapper created');
   await collectAndSaveTimeProfile(durationSeconds, sourceMapper);
   await collectAndSaveHeapProfile(sourceMapper);
-  // Explicitly stop the heap profiler to avoid segfault on Node 21+ during process exit
-  // See: https://github.com/google/pprof-nodejs/issues/283
-  heap.stop();
+  console.log('8. All profiles saved, exiting');
 }
 
 const durationSeconds = Number(process.argv.length > 2 ? process.argv[2] : 30);
-heap.start(512 * 1024, 64);
-benchmark(durationSeconds);
+console.log('Starting with duration:', durationSeconds);
 
+console.log('Starting heap profiler');
+heap.start(512 * 1024, 64);
+console.log('Heap profiler started');
+
+console.log('Starting benchmark');
+benchmark(durationSeconds);
+console.log('Benchmark started');
+
+console.log('Collecting profiles');
 collectAndSaveProfiles();
+console.log('Done');

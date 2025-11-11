@@ -4,3 +4,9 @@ build/
 proto/
 out/
 system-test/busybench-js/src/busybench.js
+# Debug/test scripts - temporary
+system-test/busybench/src/busybench-debug.ts
+test-heap-simple.js
+test-node24.js
+debug-segfault.sh
+debug-busybench.sh
