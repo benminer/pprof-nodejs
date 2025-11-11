@@ -76,7 +76,8 @@ if [[ "$VERIFY_TIME_LINE_NUMBERS" == "true" ]]; then
 else
   output=$(pprof -filefunctions -top -nodecount=2 time.pb.gz | tee $tty)
   if [ "$NODE_VERSION" -ge 21 ]; then
-    grep "anonymous.*busybench.js" <<< "$output"
+    # Node 21+ shows "anonymous" and source maps back to .ts files
+    grep "anonymous.*busybench\.[jt]s" <<< "$output"
   else
     grep "busyLoop.*src/busybench.ts" <<< "$output"
   fi

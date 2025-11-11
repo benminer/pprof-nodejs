@@ -65,12 +65,15 @@ async function collectAndSaveHeapProfile(sourceMapper) {
 
 async function collectAndSaveProfiles(collectLineNumberTimeProfile) {
   const sourceMapper = await pprof.SourceMapper.create([process.cwd()]);
-  collectAndSaveHeapProfile(sourceMapper);
-  collectAndSaveTimeProfile(
+  await collectAndSaveHeapProfile(sourceMapper);
+  await collectAndSaveTimeProfile(
     durationSeconds / 2,
     sourceMapper,
     collectLineNumberTimeProfile
   );
+  // Explicitly stop the heap profiler to avoid segfault on Node 21+ during process exit
+  // See: https://github.com/google/pprof-nodejs/issues/283
+  pprof.heap.stop();
 }
 
 const durationSeconds = Number(process.argv.length > 2 ? process.argv[2] : 30);
